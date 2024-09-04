@@ -583,7 +583,7 @@ def get_argument_dictionary(arguments: list[dict], key: str) -> dict:
 
 def main():
     from interpreter import interpreter
-
+    
     try:
         start_terminal_interface(interpreter)
     except KeyboardInterrupt:
