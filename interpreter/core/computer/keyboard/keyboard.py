@@ -14,7 +14,7 @@ class Keyboard:
     def __init__(self, computer):
         self.computer = computer
 
-    def write(self, text, interval=None, delay=0.30, **kwargs):
+    def write(self, text, interval=0.1, delay=0.30, **kwargs):
         """
         Type out a string of characters with some realistic delay.
         """

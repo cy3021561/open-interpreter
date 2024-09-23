@@ -34,6 +34,7 @@ pywinctl = lazy_import("pywinctl")
 
 
 from ..utils.computer_vision import find_text_in_image, pytesseract_get_text
+from ..utils.get_coordinates import locate_all_text_on_screen, custom_screenshot, mark_text_on_image
 
 
 class Display:
@@ -323,79 +324,18 @@ class Display:
                 "Failed to find text locally.\n\nTo find text in order to use the mouse, please make sure you've installed `pytesseract` along with the Tesseract executable (see this Stack Overflow answer for help installing Tesseract: https://stackoverflow.com/questions/50951955/pytesseract-tesseractnotfound-error-tesseract-is-not-installed-or-its-not-i)."
             )
         
-    def find_field_coordinates(self, field_name, screenshot):
+    def find_field_coordinates(self):
         """
-        Finds the coordinates of a specific field in a screenshot.
+        Finds the coordinates of all possible fields in a screenshot.
         """
-        cv_image = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
-        
-        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+        coordinate_list = {}
+        screen_image = custom_screenshot()
+        text_info = locate_all_text_on_screen(screen_image)
+        marked_image = mark_text_on_image(screen_image, text_info)
+        for text, center, _ in text_info:
+            coordinate_list[text] = center
 
-        data = pytesseract.image_to_data(gray, output_type=pytesseract.Output.DICT)
-
-        for i, text in enumerate(data['text']):
-            if field_name.lower() in text.lower():
-                x, y = data['left'][i], data['top'][i]
-                w, h = data['width'][i], data['height'][i]
-                
-                # Calculate relative coordinates
-                rel_x = (x + w/2) / self.screen_width
-                rel_y = (y + h/2) / self.screen_height
-
-                self.visualize_field(cv_image.copy(), x, y, w, h, field_name)
-
-                return {
-                    'coordinates': (rel_x, rel_y),
-                    'field_name': field_name,
-                    'method': 'ocr_match',
-                    'screen_resolution': (self.screen_width, self.screen_height)
-                }
-
-        print(f"Could not find field: {field_name}")
-        return None
-
-    def visualize_field(self, image, x, y, w, h, field_name):
-        """
-        Visualizes the detected field on the image and saves it as a file.
-        """
-        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.putText(image, field_name, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-        
-        filename = os.path.join(self.visualization_dir, f"{field_name.replace(' ', '_')}.png")
-        cv2.imwrite(filename, image)
-        print(f"Visualization for '{field_name}' saved as {filename}")
-
-    def _show_image(self, image, title):
-        """
-        Helper method to show the image in a separate thread.
-        """
-        cv2.imshow(title, image)
-        cv2.waitKey(1000)  # Display for 1 second
-        cv2.destroyAllWindows()
-    
-    def safe_screenshot(self, show=False):
-        """
-        Takes a screenshot and resizes it to match the actual screen resolution.
-        """
-        screenshot = pyautogui.screenshot()
-        screenshot = screenshot.resize((self.screen_width, self.screen_height), Image.LANCZOS)
-        if show:
-            screenshot.show()
-        return screenshot
-
-    def get_screen_info(self):
-        """
-        Get information about the primary screen.
-        
-        :return: A dictionary with screen width and height
-        """
-        try:
-            width, height = pyautogui.size()
-            return {"width": width, "height": height}
-        except Exception as e:
-            print(f"Error getting screen info: {e}")
-            return None
+        return coordinate_list
 
 
 def take_screenshot_to_pil(screen=0, combine_screens=True):
